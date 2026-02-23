@@ -101,7 +101,7 @@ async function ensureSchema() {
     )
   `;
 
-  -- Ensure new columns exist on older deployments
+  // Ensure new columns exist on older deployments
   await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS subtype TEXT`;
   await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS last_price DOUBLE PRECISION`;
   await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS last_price_at TIMESTAMP`;
