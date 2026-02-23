@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard as CardIcon, Plus, Trash2, Calendar, AlertCircle, Bell } from 'lucide-react';
 import { CreditCard } from '../types';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 export default function CreditCardManager() {
     const [cards, setCards] = useState<CreditCard[]>([]);
@@ -18,8 +19,7 @@ export default function CreditCardManager() {
     });
 
     const fetchCards = async () => {
-        // Mock fetch or actual API
-        const res = await fetch('/api/cards');
+        const res = await apiFetch('/api/cards');
         if (res.ok) {
             const data = await res.json();
             setCards(data);
@@ -32,7 +32,7 @@ export default function CreditCardManager() {
 
     const handleAdd = async () => {
         if (!newCard.name || !newCard.limit || !newCard.balance) return;
-        await fetch('/api/cards', {
+        await apiFetch('/api/cards', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

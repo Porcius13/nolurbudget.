@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LineChart, Wallet, TrendingUp, Plus, Trash2, Briefcase, Coins, Landmark } from 'lucide-react';
 import { Investment } from '../types';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 export default function InvestmentTracker() {
     const [investments, setInvestments] = useState<Investment[]>([]);
@@ -33,7 +34,7 @@ export default function InvestmentTracker() {
     });
 
     const fetchInvestments = async () => {
-        const res = await fetch('/api/investments');
+        const res = await apiFetch('/api/investments');
         const data = await res.json();
         setInvestments(data);
     };
@@ -44,7 +45,7 @@ export default function InvestmentTracker() {
 
     const handleAdd = async () => {
         if (!newInv.name || !newInv.amount || !newInv.purchase_price) return;
-        await fetch('/api/investments', {
+        await apiFetch('/api/investments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

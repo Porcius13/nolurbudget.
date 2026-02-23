@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Plus, TrendingUp, Calendar, Trash2 } from 'lucide-react';
 import { Goal } from '../types';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 export default function SavingsGoals() {
     const [goals, setGoals] = useState<Goal[]>([]);
@@ -17,7 +18,7 @@ export default function SavingsGoals() {
     });
 
     const fetchGoals = async () => {
-        const res = await fetch('/api/goals');
+        const res = await apiFetch('/api/goals');
         const data = await res.json();
         setGoals(data);
     };
@@ -28,7 +29,7 @@ export default function SavingsGoals() {
 
     const handleAdd = async () => {
         if (!newGoal.name || !newGoal.target_amount) return;
-        await fetch('/api/goals', {
+        await apiFetch('/api/goals', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -42,7 +43,7 @@ export default function SavingsGoals() {
     };
 
     const handleContribute = async (id: number, amount: number) => {
-        await fetch(`/api/goals-contribute?id=${id}`, {
+        await apiFetch(`/api/goals-contribute?id=${id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount })

@@ -117,6 +117,18 @@ async function ensureSchema() {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS cards (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      limit DOUBLE PRECISION NOT NULL,
+      balance DOUBLE PRECISION NOT NULL,
+      closing_day INTEGER NOT NULL,
+      due_day INTEGER NOT NULL,
+      color TEXT
+    )
+  `;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS documents (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
@@ -364,6 +376,26 @@ export default async function handler(req: any, res: any) {
         const inserted = await sql`
           INSERT INTO wallets (name, currency)
           VALUES (${name}, ${currency || 'TRY'})
+          RETURNING id
+        `;
+        return res.status(201).json({ id: inserted.rows[0].id });
+      }
+    }
+
+    // --- Credit Cards ---
+    if (path === 'cards') {
+      if (method === 'GET') {
+        const { rows } = await sql`
+          SELECT * FROM cards ORDER BY id ASC
+        `;
+        return res.status(200).json(rows);
+      }
+
+      if (method === 'POST') {
+        const { name, limit, balance, closing_day, due_day, color } = body;
+        const inserted = await sql`
+          INSERT INTO cards (name, limit, balance, closing_day, due_day, color)
+          VALUES (${name}, ${limit}, ${balance}, ${closing_day}, ${due_day}, ${color})
           RETURNING id
         `;
         return res.status(201).json({ id: inserted.rows[0].id });

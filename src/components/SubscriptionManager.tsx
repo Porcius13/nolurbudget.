@@ -5,6 +5,7 @@ import { Calendar, Plus, Trash2, Bell, RefreshCw, CreditCard } from 'lucide-reac
 import { Subscription, Category } from '../types';
 import { cn } from '../lib/utils';
 import { SummaryCard } from './UI';
+import { apiFetch } from '../lib/api';
 
 interface SubscriptionManagerProps {
     categories: Category[];
@@ -23,7 +24,7 @@ export default function SubscriptionManager({ categories }: SubscriptionManagerP
     });
 
     const fetchSubscriptions = async () => {
-        const res = await fetch('/api/subscriptions');
+        const res = await apiFetch('/api/subscriptions');
         const data = await res.json();
         setSubscriptions(data);
     };
@@ -35,7 +36,7 @@ export default function SubscriptionManager({ categories }: SubscriptionManagerP
     const handleAdd = async () => {
         if (!newSub.name || !newSub.amount || !newSub.category_id || !newSub.next_date) return;
 
-        await fetch('/api/subscriptions', {
+        await apiFetch('/api/subscriptions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

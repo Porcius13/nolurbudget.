@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Plus, Share2, Wallet, UserPlus } from 'lucide-react';
 import { Wallet as WalletType } from '../types';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 export default function SharedWallets() {
     const [wallets, setWallets] = useState<WalletType[]>([]);
@@ -11,7 +12,7 @@ export default function SharedWallets() {
     const [newWallet, setNewWallet] = useState({ name: '', currency: 'TRY' });
 
     const fetchWallets = async () => {
-        const res = await fetch('/api/wallets');
+        const res = await apiFetch('/api/wallets');
         const data = await res.json();
         setWallets(data);
     };
@@ -22,7 +23,7 @@ export default function SharedWallets() {
 
     const handleCreate = async () => {
         if (!newWallet.name) return;
-        await fetch('/api/wallets', {
+        await apiFetch('/api/wallets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newWallet)

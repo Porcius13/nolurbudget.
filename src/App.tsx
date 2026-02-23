@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { cn } from './lib/utils';
+import { apiFetch } from './lib/api';
 import { Transaction, Category, Summary, Budget } from './types';
 
 import { NavItem, SummaryCard, MenuButton } from './components/UI';
@@ -115,10 +116,10 @@ function App() {
   const fetchData = async () => {
     try {
       const [tRes, cRes, sRes, bRes] = await Promise.all([
-        fetch('/api/transactions'),
-        fetch('/api/categories'),
-        fetch('/api/summary'),
-        fetch('/api/budgets')
+        apiFetch('/api/transactions'),
+        apiFetch('/api/categories'),
+        apiFetch('/api/summary'),
+        apiFetch('/api/budgets')
       ]);
       const tData = await tRes.json();
       const cData = await cRes.json();
@@ -137,7 +138,7 @@ function App() {
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/transactions', {
+      const response = await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,7 +167,7 @@ function App() {
 
   const handleAddBudget = async (budgetData: any) => {
     try {
-      await fetch('/api/budgets', {
+      await apiFetch('/api/budgets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -182,7 +183,7 @@ function App() {
 
   const handleDeleteTransaction = async (id: number) => {
     try {
-      await fetch(`/api/transactions?id=${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/transactions?id=${id}`, { method: 'DELETE' });
       fetchData();
     } catch (error) {
       console.error('Error deleting transaction:', error);
@@ -192,7 +193,7 @@ function App() {
   const confirmAiTransaction = async (item: any) => {
     const category = categories.find(c => c.name === item.category_suggestion) || categories.find(c => c.name === 'Diğer');
     try {
-      await fetch('/api/transactions', {
+      await apiFetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -227,7 +228,7 @@ function App() {
         };
       });
 
-      const response = await fetch('/api/transactions-batch', {
+      const response = await apiFetch('/api/transactions-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(batchData)
