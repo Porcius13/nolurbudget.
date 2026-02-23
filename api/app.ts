@@ -120,7 +120,7 @@ async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS cards (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
-      limit DOUBLE PRECISION NOT NULL,
+      card_limit DOUBLE PRECISION NOT NULL,
       balance DOUBLE PRECISION NOT NULL,
       closing_day INTEGER NOT NULL,
       due_day INTEGER NOT NULL,
@@ -386,7 +386,9 @@ export default async function handler(req: any, res: any) {
     if (path === 'cards') {
       if (method === 'GET') {
         const { rows } = await sql`
-          SELECT * FROM cards ORDER BY id ASC
+          SELECT id, name, card_limit AS "limit", balance, closing_day, due_day, color
+          FROM cards
+          ORDER BY id ASC
         `;
         return res.status(200).json(rows);
       }
@@ -394,7 +396,7 @@ export default async function handler(req: any, res: any) {
       if (method === 'POST') {
         const { name, limit, balance, closing_day, due_day, color } = body;
         const inserted = await sql`
-          INSERT INTO cards (name, limit, balance, closing_day, due_day, color)
+          INSERT INTO cards (name, card_limit, balance, closing_day, due_day, color)
           VALUES (${name}, ${limit}, ${balance}, ${closing_day}, ${due_day}, ${color})
           RETURNING id
         `;
