@@ -94,9 +94,17 @@ async function ensureSchema() {
       amount DOUBLE PRECISION NOT NULL,
       purchase_price DOUBLE PRECISION NOT NULL,
       current_price DOUBLE PRECISION,
-      currency TEXT DEFAULT 'TRY'
+      currency TEXT DEFAULT 'TRY',
+      subtype TEXT,
+      last_price DOUBLE PRECISION,
+      last_price_at TIMESTAMP
     )
   `;
+
+  -- Ensure new columns exist on older deployments
+  await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS subtype TEXT`;
+  await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS last_price DOUBLE PRECISION`;
+  await sql`ALTER TABLE investments ADD COLUMN IF NOT EXISTS last_price_at TIMESTAMP`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS wallets (
@@ -157,6 +165,48 @@ async function ensureSchema() {
         ('Diğer', 'expense', 'MoreHorizontal', '#94a3b8')
       ON CONFLICT DO NOTHING
     `;
+  }
+}
+
+async function fetchLatestPrice(inv: any): Promise<number | null> {
+  try {
+    if (inv.type === 'gold') {
+      const subtype = inv.subtype || 'gram';
+      const res = await fetch('https://api.exchangerate.host/latest?base=XAU&symbols=TRY');
+      if (!res.ok) return null;
+      const data = await res.json();
+      const ounceTry = data?.rates?.TRY;
+      if (!ounceTry) return null;
+      const gramPrice = ounceTry / 31.1035;
+      const multipliers: Record<string, number> = {
+        gram: 1,
+        ceyre: 1.75,
+        yarim: 3.5,
+        tam: 7,
+      };
+      const m = multipliers[subtype] || 1;
+      return gramPrice * m;
+    }
+
+    if (inv.type === 'crypto') {
+      const key = (inv.subtype || inv.name || '').toString().toUpperCase();
+      const idMap: Record<string, string> = {
+        BTC: 'bitcoin',
+        ETH: 'ethereum',
+      };
+      const id = idMap[key];
+      if (!id) return null;
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=try`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const price = data?.[id]?.try;
+      return typeof price === 'number' ? price : null;
+    }
+
+    // For other types fall back to purchase price
+    return inv.purchase_price || null;
+  } catch {
+    return null;
   }
 }
 
@@ -350,14 +400,41 @@ export default async function handler(req: any, res: any) {
     if (path === 'investments') {
       if (method === 'GET') {
         const { rows } = await sql`SELECT * FROM investments ORDER BY id ASC`;
-        return res.status(200).json(rows);
+
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+
+        for (const inv of rows as any[]) {
+          const lastAt = inv.last_price_at ? new Date(inv.last_price_at).getTime() : 0;
+          const needsUpdate = !inv.last_price || now - lastAt > dayMs;
+          if (needsUpdate) {
+            const latest = await fetchLatestPrice(inv);
+            if (latest && Number.isFinite(latest)) {
+              inv.last_price = latest;
+              inv.last_price_at = new Date().toISOString();
+              inv.current_price = latest;
+              await sql`
+                UPDATE investments
+                SET last_price = ${latest}, last_price_at = NOW(), current_price = ${latest}
+                WHERE id = ${inv.id}
+              `;
+            }
+          }
+        }
+
+        const withCurrent = (rows as any[]).map(inv => ({
+          ...inv,
+          current_price: inv.current_price ?? inv.last_price ?? inv.purchase_price,
+        }));
+
+        return res.status(200).json(withCurrent);
       }
 
       if (method === 'POST') {
-        const { name, type, amount, purchase_price, currency } = body;
+        const { name, type, amount, purchase_price, currency, subtype } = body;
         const inserted = await sql`
-          INSERT INTO investments (name, type, amount, purchase_price, currency)
-          VALUES (${name}, ${type}, ${amount}, ${purchase_price}, ${currency || 'TRY'})
+          INSERT INTO investments (name, type, amount, purchase_price, currency, subtype)
+          VALUES (${name}, ${type}, ${amount}, ${purchase_price}, ${currency || 'TRY'}, ${subtype || null})
           RETURNING id
         `;
         return res.status(201).json({ id: inserted.rows[0].id });

@@ -25,13 +25,7 @@ export default function InvestmentTracker() {
         subtype: 'gram'
     });
 
-    const [prices, setPrices] = useState<Record<string, number>>({
-        'gram': 2450.50,
-        'ceyre': 4050.00,
-        'BTC': 65400.00,
-        'ETH': 3500.00,
-        'AAPL': 185.20
-    });
+    const [prices, setPrices] = useState<Record<string, number>>({});
 
     const fetchInvestments = async () => {
         const res = await apiFetch('/api/investments');
@@ -41,6 +35,51 @@ export default function InvestmentTracker() {
 
     useEffect(() => {
         fetchInvestments();
+    }, []);
+
+    // Fetch live prices for popular assets (client-side, good for Vercel)
+    useEffect(() => {
+        const fetchPrices = async () => {
+            try {
+                const result: Record<string, number> = {};
+
+                // Gold (XAU → TRY, approximate gram and coins)
+                try {
+                    const res = await fetch('https://api.exchangerate.host/latest?base=XAU&symbols=TRY');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const ounceTry = data?.rates?.TRY;
+                        if (ounceTry) {
+                            const gram = ounceTry / 31.1035;
+                            result['gram'] = gram;
+                            result['ceyre'] = gram * 1.75;
+                            result['yarim'] = gram * 3.5;
+                            result['tam'] = gram * 7;
+                        }
+                    }
+                } catch {
+                    // ignore gold price errors
+                }
+
+                // Crypto (BTC / ETH to TRY) via CoinGecko
+                try {
+                    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=try');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data?.bitcoin?.try) result['BTC'] = data.bitcoin.try;
+                        if (data?.ethereum?.try) result['ETH'] = data.ethereum.try;
+                    }
+                } catch {
+                    // ignore crypto price errors
+                }
+
+                setPrices(prev => ({ ...prev, ...result }));
+            } catch {
+                // swallow all price errors – UI çalışmaya devam etsin
+            }
+        };
+
+        fetchPrices();
     }, []);
 
     const handleAdd = async () => {
@@ -59,9 +98,12 @@ export default function InvestmentTracker() {
         fetchInvestments();
     };
 
-    const totalValue = investments.reduce((acc, inv) => acc + (inv.amount * (prices[inv.subtype || inv.name] || inv.current_price || inv.purchase_price)), 0);
+    const totalValue = investments.reduce((acc, inv) => {
+        const unit = inv.current_price || prices[inv.subtype || inv.name] || inv.purchase_price;
+        return acc + inv.amount * unit;
+    }, 0);
     const totalProfit = investments.reduce((acc, inv) => {
-        const current = prices[inv.subtype || inv.name] || inv.current_price || inv.purchase_price;
+        const current = inv.current_price || prices[inv.subtype || inv.name] || inv.purchase_price;
         return acc + (inv.amount * (current - inv.purchase_price));
     }, 0);
 
@@ -150,6 +192,38 @@ export default function InvestmentTracker() {
                         >
                             <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Yeni Yatırım</h3>
                             <div className="space-y-4">
+                                {/* Quick presets */}
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewInv(prev => ({ ...prev, name: 'Gram Altın', type: 'gold', subtype: 'gram', currency: 'TRY' }))}
+                                        className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-yellow-100 text-yellow-700"
+                                    >
+                                        Gram Altın
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewInv(prev => ({ ...prev, name: 'Çeyrek Altın', type: 'gold', subtype: 'ceyre', currency: 'TRY' }))}
+                                        className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-yellow-100 text-yellow-700"
+                                    >
+                                        Çeyrek Altın
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewInv(prev => ({ ...prev, name: 'BTC', type: 'crypto', subtype: 'BTC', currency: 'TRY' }))}
+                                        className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white"
+                                    >
+                                        BTC
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNewInv(prev => ({ ...prev, name: 'ETH', type: 'crypto', subtype: 'ETH', currency: 'TRY' }))}
+                                        className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white"
+                                    >
+                                        ETH
+                                    </button>
+                                </div>
+
                                 <input
                                     type="text"
                                     placeholder="Varlık Adı (örn: Apple, BTC, Gram Altın)"
